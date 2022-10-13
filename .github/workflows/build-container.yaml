@@ -1,9 +1,6 @@
-name: 3 - Build & Push Docker Container
+name: Build & Push Docker Container
 
 on:
-  # push:
-  #   branches:
-  #     - main
   workflow_call:
     secrets:
       DOCKERHUB_USERNAME:
@@ -15,13 +12,13 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    env:
+      LATEST: 14
     strategy:
       max-parallel: 4
       matrix:
-        psql-version: [12, 13]
+        psql-version: [11, 12, 13, 14]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
@@ -41,9 +38,12 @@ jobs:
       - name: Build container image
         run: |
           docker build -f Dockerfile \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/psql:latest \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/psql:12 \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/psql:${{ matrix.psql-version }} \
             .
+      - name: Tag Latest
+        if: matrix.psql-version == env.LATEST
+        run: |
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/psql:${{ matrix.psql-version }} ${{ secrets.DOCKERHUB_USERNAME }}/psql:latest
       - name: Push image
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/psql --all-tags
